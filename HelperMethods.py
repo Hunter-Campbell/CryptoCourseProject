@@ -1,5 +1,6 @@
 import struct
 from Crypto.Util.Padding import pad, unpad
+
 AES_BLOCK_SIZE_BYTES = 16
 
 #Receive a single message from a remote host (not really remote in this program but name felt appropriate)
@@ -18,7 +19,7 @@ def recvall(remote_host, count):
         count -= len(newbuf)
     return buf
 
-#Send a single messgae to a host.  Able to identify if the type is already in byte format or in string format and execute accordingly
+#Send a single message to a host.  Able to identify if the type is already in byte format or in string format and execute accordingly
 def send_one_message(remote_host, message):
     if(isinstance(message, str)):
         length = len(message)

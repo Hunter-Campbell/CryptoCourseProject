@@ -1,5 +1,7 @@
 import socket
 from Crypto.Cipher import AES
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad
 from HelperMethods import *
@@ -39,7 +41,29 @@ def communcation_loop(client, cipher, addr, *optional_decryption_cipher):
             user_message_plaintext = input("\nPlease enter a message to be encrypted and sent to the client: ")
             encrypt_and_send(user_message_plaintext.encode(), client, cipher)
 
+def connection_setup():
+    #Generate RSA Key Pair
+    rsa_keys = RSA.generate(2048)
+    
+    private_key = rsa_keys.export_key()
+    public_key = rsa_keys.public_key().export_key()
 
+    cipher = PKCS1_OAEP.new(rsa_keys)
+
+    message = b"Zoo Wee Mama"
+
+    ciphertext = cipher.encrypt(message)
+
+    decrypted_text = cipher.decrypt(ciphertext)
+
+    print(f"Ciphertext {ciphertext} \n\n DecryptedText {decrypted_text}")
+
+
+
+    print(f"{private_key}")
+    print(f"\n {public_key}")
+
+"""
 def main():
     while True:
         #Server connection stuff
@@ -91,6 +115,7 @@ def main():
 
 
     
-
+"""
 #Start execution
-main()
+#main()
+connection_setup()

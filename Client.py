@@ -1,5 +1,6 @@
 import socket
 from Crypto.Cipher import AES
+from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 import sys
 import time
