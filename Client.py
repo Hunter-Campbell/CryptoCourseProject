@@ -81,7 +81,12 @@ def main():
     server = socket.socket()             
     port = 52222      
     server.connect(('127.0.0.1', port))  
-    
+
+    #The first thing we need to receive is the public key from the server
+    rsa_pub_key = recv_one_message(server)
+
+    print(rsa_pub_key)
+
     #The first thing that needs to be sent to the server is the AES mode we will be using. 
     send_one_message(server, args[2])
 

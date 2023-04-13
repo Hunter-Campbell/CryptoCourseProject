@@ -41,35 +41,35 @@ def communcation_loop(client, cipher, addr, *optional_decryption_cipher):
             user_message_plaintext = input("\nPlease enter a message to be encrypted and sent to the client: ")
             encrypt_and_send(user_message_plaintext.encode(), client, cipher)
 
-def connection_setup():
+def generate_rsa_info():
     #Generate RSA Key Pair
     rsa_keys = RSA.generate(2048)
     
+    #Extract the public and private keys
     private_key = rsa_keys.export_key()
     public_key = rsa_keys.public_key().export_key()
 
-    cipher = PKCS1_OAEP.new(rsa_keys)
+    
+    decrypt_cipher = PKCS1_OAEP.new(rsa_keys)
 
-    message = b"Zoo Wee Mama"
-
-    ciphertext = cipher.encrypt(message)
-
-    decrypted_text = cipher.decrypt(ciphertext)
-
-    print(f"Ciphertext {ciphertext} \n\n DecryptedText {decrypted_text}")
+    ret_tuple = (public_key, private_key, decrypt_cipher)
+    print(ret_tuple)
+    return ret_tuple
 
 
 
-    print(f"{private_key}")
-    print(f"\n {public_key}")
-
-"""
 def main():
     while True:
         #Server connection stuff
         print("Awaiting new Client")
         client, addr = socket.accept() 
         print("Client Connected")
+
+        #This is a tuple containing the public key, private key, and the cipher in that order
+        rsa_info = generate_rsa_info()
+
+        #First we must send the RSA public key to the client
+        send_one_message(client, rsa_info[0])
 
         #The first thing that needs to be received from the client is the AES mode we will be using.
         client_AES_mode = recv_one_message(client)
@@ -115,7 +115,6 @@ def main():
 
 
     
-"""
+
 #Start execution
-#main()
-connection_setup()
+main()
