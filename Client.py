@@ -7,6 +7,12 @@ import sys
 import time
 from HelperMethods import *
 
+"""
+Names: Hunter Campbell, Carlos Nieves
+Description: Client Server program for secret communication.  Makes use of RSA public keys to share an AES private key for communication
+
+"""
+
 aes_valid_modes = ["ECB", "CBC", "OFB"]
 valid_key_lengths = [128, 192, 256]
 args = sys.argv
@@ -75,7 +81,7 @@ def communication_loop(server, cipher, *optional_decryption_cipher):
                 time.sleep(1)
                 break
 
-
+#Encrypt a message with a given RSA public key
 def encrypt_message_with_rsa_pubkey(message, pubkey):
     cipher = PKCS1_OAEP.new(RSA.import_key(pubkey))
     enc_message = cipher.encrypt(message)

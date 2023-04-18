@@ -6,6 +6,12 @@ from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad
 from HelperMethods import *
 
+"""
+Names: Hunter Campbell, Carlos Nieves
+Description: Client Server program for secret communication.  Makes use of RSA public keys to share an AES private key for communication
+
+"""
+
 #Server setup stuff
 socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 port = 52222
