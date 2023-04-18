@@ -41,6 +41,8 @@ def communcation_loop(client, cipher, addr, *optional_decryption_cipher):
             user_message_plaintext = input("\nPlease enter a message to be encrypted and sent to the client: ")
             encrypt_and_send(user_message_plaintext.encode(), client, cipher)
 
+
+#This will generate and return all required RSA information
 def generate_rsa_info():
     #Generate RSA Key Pair
     rsa_keys = RSA.generate(2048)
@@ -48,16 +50,15 @@ def generate_rsa_info():
     #Extract the public and private keys
     private_key = rsa_keys.export_key()
     public_key = rsa_keys.public_key().export_key()
-
     
-    decrypt_cipher = PKCS1_OAEP.new(rsa_keys)
+    cipher = PKCS1_OAEP.new(rsa_keys)
 
-    ret_tuple = (public_key, private_key, decrypt_cipher)
-    print(ret_tuple)
+    ret_tuple = (public_key, private_key, cipher)
+    print(f"\n{ret_tuple[0]} \n\n {ret_tuple[1]}\n")
     return ret_tuple
 
 
-
+#Main execution funciton
 def main():
     while True:
         #Server connection stuff
@@ -68,21 +69,30 @@ def main():
         #This is a tuple containing the public key, private key, and the cipher in that order
         rsa_info = generate_rsa_info()
 
-        #First we must send the RSA public key to the client
-        send_one_message(client, rsa_info[0])
-
         #The first thing that needs to be received from the client is the AES mode we will be using.
         client_AES_mode = recv_one_message(client)
         print(f"AES mode received: {client_AES_mode}")
 
-        #Receive the key from the client this is generated once per client session which is why it is received out of a loop.
-        received_key = recv_one_message(client)
-        print(f"Received key from client: {received_key}")
+        #Next we must send the RSA public key to the client
+        send_one_message(client, rsa_info[0])
+
+        #Receive the AES key that is encrypted, from the client
+        received_encrypted_key = recv_one_message(client)
+        print(f"Received encrypted key from client: {received_encrypted_key}")
+        #Decrypt the AES key using our RSA private key
+        decrypted_AES_key = rsa_info[2].decrypt(received_encrypted_key)
+
+        #Print the decrypted AES Key
+        print(f"\n\nDecrypted AES KEY{decrypted_AES_key}")
+
+
+
+
 
         #Execute this IF block if the mode is ECB
         if client_AES_mode == b"ECB":
             #Create the AES object with the key
-            cipher = AES.new(received_key, AES.MODE_ECB)
+            cipher = AES.new(decrypted_AES_key, AES.MODE_ECB)
 
             communcation_loop(client, cipher, addr)
 
@@ -93,8 +103,8 @@ def main():
             print(f"Received iv from client: {received_iv}")
 
             #CBC mode is stateful meaning the same object cannot encrypt and decrypt.  This is why we need a decryption and encryption cipher object
-            enc_cipher = AES.new(received_key, AES.MODE_CBC, received_iv)
-            dec_cipher = AES.new(received_key, AES.MODE_CBC, received_iv)
+            enc_cipher = AES.new(decrypted_AES_key, AES.MODE_CBC, received_iv)
+            dec_cipher = AES.new(decrypted_AES_key, AES.MODE_CBC, received_iv)
 
             communcation_loop(client, enc_cipher, addr, dec_cipher)
 
@@ -104,8 +114,8 @@ def main():
             print(f"Received iv from client: {received_iv}")
 
             #OFB mode is stateful meaning the same object cannot encrypt and decrypt.  This is why we need a decryption and encryption cipher object
-            enc_cipher = AES.new(received_key, AES.MODE_OFB, received_iv)
-            dec_cipher = AES.new(received_key, AES.MODE_OFB, received_iv)
+            enc_cipher = AES.new(decrypted_AES_key, AES.MODE_OFB, received_iv)
+            dec_cipher = AES.new(decrypted_AES_key, AES.MODE_OFB, received_iv)
 
             communcation_loop(client, enc_cipher, addr, dec_cipher)
 

@@ -1,6 +1,7 @@
 import socket
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 import sys
 import time
@@ -75,6 +76,11 @@ def communication_loop(server, cipher, *optional_decryption_cipher):
                 break
 
 
+def encrypt_message_with_rsa_pubkey(message, pubkey):
+    cipher = PKCS1_OAEP.new(RSA.import_key(pubkey))
+    enc_message = cipher.encrypt(message)
+    return enc_message
+
 
 def main():
     #Socket setup and connection stuff
@@ -82,20 +88,26 @@ def main():
     port = 52222      
     server.connect(('127.0.0.1', port))  
 
-    #The first thing we need to receive is the public key from the server
-    rsa_pub_key = recv_one_message(server)
-
-    print(rsa_pub_key)
-
     #The first thing that needs to be sent to the server is the AES mode we will be using. 
     send_one_message(server, args[2])
 
-    #Generate a key with the given bit length converted to byte length
+    #Next we need to receive is the RSA public key from the server
+    rsa_pub_key = recv_one_message(server)
+    print(f"{rsa_pub_key}\n")
+
+    #Generate an AES key with the given bit length converted to byte length
     key = get_random_bytes(int(int(args[1]) / 8))
-    print(f"\nThe generated key is {key}\n")
-    #Send the key to the server
-    send_one_message(server, key)
+    print(f"\nThe generated AES key is {key}\n")
+
+    #Encrypt the AES key using the received RSA public key
+    encrypted_AES_key = encrypt_message_with_rsa_pubkey(key, rsa_pub_key)
+
+    print(f"\nEncrypted AES key with RSA public key \n {encrypted_AES_key}")
+
+    #Send the encrypted AES key to the server
+    send_one_message(server, encrypted_AES_key)
     
+
     #Execute this IF block if EBC is selected as the mode
     if args[2] == "ECB":
         #Create the AES object with the key

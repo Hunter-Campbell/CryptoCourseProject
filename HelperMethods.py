@@ -47,5 +47,3 @@ def decrypt_and_display(cipher_text, cipher, *optional_decryption_cipher):
     unpadded_plaintext = unpad(plaintext, AES_BLOCK_SIZE_BYTES)
     print(f"Decrypted plaintext: {unpadded_plaintext.decode()}")
     return unpadded_plaintext.decode()
-
-
