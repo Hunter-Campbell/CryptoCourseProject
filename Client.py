@@ -81,6 +81,7 @@ def communication_loop(server, cipher, *optional_decryption_cipher):
                 time.sleep(1)
                 break
 
+
 #Encrypt a message with a given RSA public key
 def encrypt_message_with_rsa_pubkey(message, pubkey):
     cipher = PKCS1_OAEP.new(RSA.import_key(pubkey))
@@ -88,6 +89,19 @@ def encrypt_message_with_rsa_pubkey(message, pubkey):
     return enc_message
 
 
+#Sends AES key to server using RSA key as encryption method
+def rsa_exchange(AES_key, server):
+    #Receive the RSA public key from the server
+    rsa_pub_key = recv_one_message(server)
+    print(f"--Public key received from server--\n{rsa_pub_key}")
+    #Encrypt AES key with received RSA key
+    encrypted_AES_key = encrypt_message_with_rsa_pubkey(AES_key, rsa_pub_key)
+    print(f"\n--Encrypted AES key with RSA public key--\n{encrypted_AES_key}")
+    #Send encrypted AES key to the server
+    send_one_message(server, encrypted_AES_key)
+
+
+#Execution starts here
 def main():
     #Socket setup and connection stuff
     server = socket.socket()             
@@ -97,41 +111,33 @@ def main():
     #The first thing that needs to be sent to the server is the AES mode we will be using. 
     send_one_message(server, args[2])
 
-    #Next we need to receive is the RSA public key from the server
-    rsa_pub_key = recv_one_message(server)
-    print(f"{rsa_pub_key}\n")
-
     #Generate an AES key with the given bit length converted to byte length
-    key = get_random_bytes(int(int(args[1]) / 8))
-    print(f"\nThe generated AES key is {key}\n")
+    AES_key = get_random_bytes(int(int(args[1]) / 8))
+    print(f"\n--The generated AES key--\n{AES_key}\n")
 
-    #Encrypt the AES key using the received RSA public key
-    encrypted_AES_key = encrypt_message_with_rsa_pubkey(key, rsa_pub_key)
-
-    print(f"\nEncrypted AES key with RSA public key \n {encrypted_AES_key}")
-
-    #Send the encrypted AES key to the server
-    send_one_message(server, encrypted_AES_key)
+    #Sends AES key to server
+    rsa_exchange(AES_key, server)
     
 
     #Execute this IF block if EBC is selected as the mode
     if args[2] == "ECB":
         #Create the AES object with the key
-        cipher = AES.new(key, AES.MODE_ECB)
+        cipher = AES.new(AES_key, AES.MODE_ECB)
         communication_loop(server, cipher)
         
     #Execute this IF block if CBC is selected as the mode
     elif args[2] == "CBC":
         #Create and send the IV to the server.  IV is 16 bytes same as a block
         iv = get_random_bytes(16)
-        print(f"\nThe generated iv is {iv}\n")
+        print(f"\n--The generated iv is--\n{iv}")
         send_one_message(server, iv)
 
         #CBC mode is stateful meaning the same object cannot encrypt and decrypt.  This is why we need a decryption and encryption cipher object
-        enc_cipher = AES.new(key, AES.MODE_CBC, iv)
-        dec_cipher = AES.new(key, AES.MODE_CBC, iv)
+        enc_cipher = AES.new(AES_key, AES.MODE_CBC, iv)
+        dec_cipher = AES.new(AES_key, AES.MODE_CBC, iv)
         communication_loop(server, enc_cipher, dec_cipher)
 
+    #Execute this IF block if OFB is selected as the mode
     elif args[2] == "OFB":
         #Create and send the IV to the server.  IV is 16 bytes same as a block
         iv = get_random_bytes(16)
@@ -139,8 +145,8 @@ def main():
         send_one_message(server, iv)
 
         #OFB mode is stateful meaning the same object cannot encrypt and decrypt.  This is why we need a decryption and encryption cipher object
-        enc_cipher = AES.new(key, AES.MODE_OFB, iv)
-        dec_cipher = AES.new(key, AES.MODE_OFB, iv)
+        enc_cipher = AES.new(AES_key, AES.MODE_OFB, iv)
+        dec_cipher = AES.new(AES_key, AES.MODE_OFB, iv)
 
         communication_loop(server, enc_cipher, dec_cipher)
 main()

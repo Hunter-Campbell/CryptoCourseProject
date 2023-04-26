@@ -64,7 +64,20 @@ def generate_rsa_info():
     return ret_tuple
 
 
-#Main execution funciton
+#Handles the RSA communication and returns the decrupted AES key
+def rsa_exchange(client):
+    rsa_info = generate_rsa_info()
+    send_one_message(client, rsa_info[0])
+
+    received_encrypted_key = recv_one_message(client)
+    print(f"--Received encrypted AES key from client--\n{received_encrypted_key}")
+
+    #Decrypt the AES key using our RSA private key
+    decrypted_AES_key = rsa_info[2].decrypt(received_encrypted_key)
+    return decrypted_AES_key
+    
+
+#Main execution starts here
 def main():
     while True:
         #Server connection stuff
@@ -72,26 +85,15 @@ def main():
         client, addr = socket.accept() 
         print("Client Connected")
 
-        #This is a tuple containing the public key, private key, and the cipher in that order
-        rsa_info = generate_rsa_info()
-
         #The first thing that needs to be received from the client is the AES mode we will be using.
         client_AES_mode = recv_one_message(client)
         print(f"AES mode received: {client_AES_mode}")
 
-        #Next we must send the RSA public key to the client
-        send_one_message(client, rsa_info[0])
-
-        #Receive the AES key that is encrypted, from the client
-        received_encrypted_key = recv_one_message(client)
-        print(f"Received encrypted key from client: {received_encrypted_key}")
-        #Decrypt the AES key using our RSA private key
-        decrypted_AES_key = rsa_info[2].decrypt(received_encrypted_key)
+        #Do RSA exchange and return AES key
+        decrypted_AES_key = rsa_exchange(client)
 
         #Print the decrypted AES Key
-        print(f"\n\nDecrypted AES KEY{decrypted_AES_key}")
-
-
+        print(f"\n--Decrypted AES KEY--{decrypted_AES_key}\n")
 
 
 
@@ -99,14 +101,13 @@ def main():
         if client_AES_mode == b"ECB":
             #Create the AES object with the key
             cipher = AES.new(decrypted_AES_key, AES.MODE_ECB)
-
             communcation_loop(client, cipher, addr)
 
         #Execute this IF block if the mode is CCB
         elif client_AES_mode == b"CBC":
             #Receive the iv from the client.
             received_iv = recv_one_message(client)
-            print(f"Received iv from client: {received_iv}")
+            print(f"--Received iv from client--\n{received_iv}")
 
             #CBC mode is stateful meaning the same object cannot encrypt and decrypt.  This is why we need a decryption and encryption cipher object
             enc_cipher = AES.new(decrypted_AES_key, AES.MODE_CBC, received_iv)
@@ -114,10 +115,11 @@ def main():
 
             communcation_loop(client, enc_cipher, addr, dec_cipher)
 
+        #Execute this IF block if the mode is OFB
         elif client_AES_mode == b"OFB":
             #Receive the iv from the client.
             received_iv = recv_one_message(client)
-            print(f"Received iv from client: {received_iv}")
+            print(f"--Received iv from client--\n{received_iv}")
 
             #OFB mode is stateful meaning the same object cannot encrypt and decrypt.  This is why we need a decryption and encryption cipher object
             enc_cipher = AES.new(decrypted_AES_key, AES.MODE_OFB, received_iv)
@@ -125,7 +127,7 @@ def main():
 
             communcation_loop(client, enc_cipher, addr, dec_cipher)
 
-
+        
         else:
             print(f"Problem with reveived AES mode: {client_AES_mode}")
 
