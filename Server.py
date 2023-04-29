@@ -5,11 +5,12 @@ from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad
 from HelperMethods import *
+from Crypto.Signature import pkcs1_15
+from Crypto.Hash import SHA256
 
 """
 Names: Hunter Campbell, Carlos Nieves
 Description: Client Server program for secret communication.  Makes use of RSA public keys to share an AES private key for communication
-
 """
 
 #Server setup stuff
@@ -21,7 +22,7 @@ socket.listen(1)
 #This handles the communicaton loops for CBC, ECB and OFB
 #Since ECB is not stateful while CBC and OFB are stateful, this function can take an optional paramater for the stateful ciphers
 #The optional paramater is for a secondary decryption cipher object to go along with the main cipher object.
-def communcation_loop(client, cipher, addr, *optional_decryption_cipher):
+def communcation_loop(client, cipher, addr, private_key, *optional_decryption_cipher):
     if len(optional_decryption_cipher) <= 0:
         #While loop for communication with the client (if the server or client type "bye!" the client will disconnect and the server will wait for a new client)
         while True:
@@ -31,9 +32,11 @@ def communcation_loop(client, cipher, addr, *optional_decryption_cipher):
                 encrypt_and_send("bye!".encode(), client, cipher)
                 print(f"\nClient {addr} has disconnected")
                 break
-
+            
+            #Send message and signature to client
             user_message_plaintext = input("\nPlease enter a message to be encrypted and sent to the client: ")
             encrypt_and_send(user_message_plaintext.encode(), client, cipher)
+            send_one_message(client, get_message_signature(user_message_plaintext, private_key))
     #This else block is for communication using stateful ciphers IE CBC and OFB (stateful means you cant encrypt and decrypt with the same object)
     else:
         while True:
@@ -43,10 +46,11 @@ def communcation_loop(client, cipher, addr, *optional_decryption_cipher):
                 encrypt_and_send("bye!".encode(), client, cipher)
                 print(f"\nClient {addr} has disconnected")
                 break
-
+            
+            #Send message and signature to client
             user_message_plaintext = input("\nPlease enter a message to be encrypted and sent to the client: ")
             encrypt_and_send(user_message_plaintext.encode(), client, cipher)
-
+            send_one_message(client, get_message_signature(user_message_plaintext, private_key))
 
 #This will generate and return all required RSA information
 def generate_rsa_info():
@@ -64,9 +68,18 @@ def generate_rsa_info():
     return ret_tuple
 
 
+#Get the digital signature of a message using server private key.
+def get_message_signature(message, private_key):
+    hash_obj = SHA256.new(message.encode())
+    signer = pkcs1_15.new(RSA.import_key(private_key))
+    signature = signer.sign(hash_obj)
+    return signature
+
+
 #Handles the RSA communication and returns the decrupted AES key
 def rsa_exchange(client):
     rsa_info = generate_rsa_info()
+    private_key = rsa_info[1]
     send_one_message(client, rsa_info[0])
 
     received_encrypted_key = recv_one_message(client)
@@ -74,7 +87,7 @@ def rsa_exchange(client):
 
     #Decrypt the AES key using our RSA private key
     decrypted_AES_key = rsa_info[2].decrypt(received_encrypted_key)
-    return decrypted_AES_key
+    return decrypted_AES_key, private_key
     
 
 #Main execution starts here
@@ -90,7 +103,7 @@ def main():
         print(f"AES mode received: {client_AES_mode}")
 
         #Do RSA exchange and return AES key
-        decrypted_AES_key = rsa_exchange(client)
+        decrypted_AES_key, private_key = rsa_exchange(client)
 
         #Print the decrypted AES Key
         print(f"\n--Decrypted AES KEY--{decrypted_AES_key}\n")
@@ -101,7 +114,7 @@ def main():
         if client_AES_mode == b"ECB":
             #Create the AES object with the key
             cipher = AES.new(decrypted_AES_key, AES.MODE_ECB)
-            communcation_loop(client, cipher, addr)
+            communcation_loop(client, cipher, addr, private_key)
 
         #Execute this IF block if the mode is CCB
         elif client_AES_mode == b"CBC":
@@ -113,7 +126,7 @@ def main():
             enc_cipher = AES.new(decrypted_AES_key, AES.MODE_CBC, received_iv)
             dec_cipher = AES.new(decrypted_AES_key, AES.MODE_CBC, received_iv)
 
-            communcation_loop(client, enc_cipher, addr, dec_cipher)
+            communcation_loop(client, enc_cipher, addr, private_key, dec_cipher)
 
         #Execute this IF block if the mode is OFB
         elif client_AES_mode == b"OFB":
@@ -125,7 +138,7 @@ def main():
             enc_cipher = AES.new(decrypted_AES_key, AES.MODE_OFB, received_iv)
             dec_cipher = AES.new(decrypted_AES_key, AES.MODE_OFB, received_iv)
 
-            communcation_loop(client, enc_cipher, addr, dec_cipher)
+            communcation_loop(client, enc_cipher, addr, private_key, dec_cipher)
 
         
         else:

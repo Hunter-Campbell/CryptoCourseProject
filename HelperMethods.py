@@ -4,7 +4,6 @@ from Crypto.Util.Padding import pad, unpad
 """
 Names: Hunter Campbell, Carlos Nieves
 Description: Client Server program for secret communication.  Makes use of RSA public keys to share an AES private key for communication
-
 """
 
 AES_BLOCK_SIZE_BYTES = 16
